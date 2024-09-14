@@ -1,7 +1,7 @@
 "use client";
 
 import React, { use, useEffect, useState } from "react";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,7 +86,7 @@ export default function AdminDashboard() {
     if (!token) {
       router.push("/sign-in");
     } else {
-      fetchUserData(token, userId);
+      fetchUserData(token, userId!);
       fetchData();
     }
   }, [router]);
@@ -176,7 +176,10 @@ export default function AdminDashboard() {
     updatedItem: User | Expense | Category | Budget
   ) => {
     try {
-      let response;
+      let response:
+        | AxiosResponse<Expense, any>
+        | AxiosResponse<Category, any>
+        | AxiosResponse<Budget, any>;
       switch (activeTab) {
         case "users":
           response = await axios.put<User>(
