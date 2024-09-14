@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios, { AxiosResponse } from "axios";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -67,15 +67,15 @@ type Budget = {
 
 type ActiveTab = "users" | "expenses" | "categories" | "budgets";
 
+type DataType = User | Expense | Category | Budget;
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("users");
   const [users, setUsers] = useState<User[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [editingItem, setEditingItem] = useState<
-    User | Expense | Category | Budget | null
-  >(null);
+  const [editingItem, setEditingItem] = useState<DataType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userName, setUserName] = useState<string>("");
   const router = useRouter();
@@ -93,7 +93,7 @@ export default function AdminDashboard() {
 
   const fetchUserData = async (token: string, user: string) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/users/${user}`, {
+      const response = await axios.get<User>(`${API_BASE_URL}/users/${user}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUserName(response.data.name);
@@ -132,36 +132,34 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAdd = async (
-    newItem: Partial<User | Expense | Category | Budget>
-  ) => {
+  const handleAdd = async (newItem: Partial<DataType>) => {
     try {
-      let response;
+      let response: AxiosResponse<DataType>;
       switch (activeTab) {
         case "users":
           response = await axios.post<User>(`${API_BASE_URL}/users`, newItem);
-          setUsers([...users, response.data]);
+          setUsers([...users, response.data as User]);
           break;
         case "expenses":
           response = await axios.post<Expense>(
             `${API_BASE_URL}/expense`,
             newItem
           );
-          setExpenses([...expenses, response.data]);
+          setExpenses([...expenses, response.data as Expense]);
           break;
         case "categories":
           response = await axios.post<Category>(
             `${API_BASE_URL}/category`,
             newItem
           );
-          setCategories([...categories, response.data]);
+          setCategories([...categories, response.data as Category]);
           break;
         case "budgets":
           response = await axios.post<Budget>(
             `${API_BASE_URL}/budget`,
             newItem
           );
-          setBudgets([...budgets, response.data]);
+          setBudgets([...budgets, response.data as Budget]);
           break;
       }
       toast.success(`${activeTab.slice(0, -1)} added successfully!`);
@@ -172,14 +170,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleEdit = async (
-    updatedItem: User | Expense | Category | Budget
-  ) => {
+  const handleEdit = async (updatedItem: DataType) => {
     try {
-      let response:
-        | AxiosResponse<Expense, any>
-        | AxiosResponse<Category, any>
-        | AxiosResponse<Budget, any>;
+      let response: AxiosResponse<DataType>;
       switch (activeTab) {
         case "users":
           response = await axios.put<User>(
@@ -188,7 +181,7 @@ export default function AdminDashboard() {
           );
           setUsers(
             users.map((user) =>
-              user._id === updatedItem._id ? response.data : user
+              user._id === updatedItem._id ? (response.data as User) : user
             )
           );
           break;
@@ -199,7 +192,9 @@ export default function AdminDashboard() {
           );
           setExpenses(
             expenses.map((expense) =>
-              expense._id === updatedItem._id ? response.data : expense
+              expense._id === updatedItem._id
+                ? (response.data as Expense)
+                : expense
             )
           );
           break;
@@ -210,7 +205,9 @@ export default function AdminDashboard() {
           );
           setCategories(
             categories.map((category) =>
-              category._id === updatedItem._id ? response.data : category
+              category._id === updatedItem._id
+                ? (response.data as Category)
+                : category
             )
           );
           break;
@@ -221,7 +218,9 @@ export default function AdminDashboard() {
           );
           setBudgets(
             budgets.map((budget) =>
-              budget._id === updatedItem._id ? response.data : budget
+              budget._id === updatedItem._id
+                ? (response.data as Budget)
+                : budget
             )
           );
           break;
@@ -269,7 +268,6 @@ export default function AdminDashboard() {
       }
     }
   };
-
   const renderForm = (
     item: Partial<User | Expense | Category | Budget> = {}
   ) => {
@@ -523,8 +521,9 @@ export default function AdminDashboard() {
                       )?.name
                     : column === "Amount"
                     ? `$${
-                        (item as Expense | Budget).amount ||
-                        (item as Budget).totalAmount
+                        "amount" in item
+                          ? (item as Expense).amount
+                          : (item as Budget).totalAmount
                       }`
                     : column === "Category" && activeTab === "expenses"
                     ? categories.find(
